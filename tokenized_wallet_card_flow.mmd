@@ -1,0 +1,10 @@
+flowchart LR
+  A[Cardholder] --> B[Supported Wallet] 
+  B -->|Tokenized credential + required cryptogram data| C[Merchant / PSP]
+  C --> D[Acquirer / Processor]
+  D --> E[Card Network]
+  E --> F[Issuer Bank]
+  F -->|Approve / Decline| E
+  E --> D --> C
+  C --> G[Capture, Clearing, Settlement]
+  G --> H[Merchant Reconciliation]

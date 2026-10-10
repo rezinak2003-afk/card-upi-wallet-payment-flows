@@ -1,0 +1,11 @@
+flowchart LR
+  A[Cardholder] --> B[Merchant / POS / Checkout]
+  B --> C[Acquirer / Processor]
+  C --> D[Card Network]
+  D --> E[Issuer Bank]
+  E -->|Approve / Decline| D
+  D --> C --> B
+  B --> F[Capture / Clearing]
+  F --> D
+  D --> G[Interbank Settlement]
+  G --> H[Merchant Payout / Reconciliation]

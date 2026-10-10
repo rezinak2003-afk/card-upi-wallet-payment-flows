@@ -1,0 +1,10 @@
+flowchart LR
+  A[Payer] --> B[UPI App / Payer PSP]
+  B --> C[NPCI UPI Ecosystem]
+  C --> D[Remitter Bank]
+  D -->|Debit / status| C
+  C --> E[Beneficiary / Payee Bank]
+  E -->|Credit / status| C
+  C --> B
+  B --> F[Merchant / Payee Confirmation]
+  F --> G[Reconciliation and Exception Handling]
