@@ -1,11 +1,896 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Card, UPI & Wallet Payment Flows</title><style>
-:root{--ink:#18263f;--muted:#5b6b81;--line:#dce5ef;--bg:#f5f8fc;--blue:#225ee8;--teal:#0a8a7c;--gold:#f0aa35;--red:#b53c52}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 Inter,system-ui,-apple-system,Segoe UI,sans-serif}header{padding:54px max(6vw,22px);background:linear-gradient(125deg,#13233d,#225b82);color:#fff}header .kicker{text-transform:uppercase;letter-spacing:.12em;font-size:.76rem;color:#bad8ff;font-weight:800}h1{font-size:clamp(2rem,5vw,3.5rem);line-height:1.1;margin:10px 0 16px}header p{max-width:830px;color:#e5efff}.tags{display:flex;flex-wrap:wrap;gap:8px}.tag{border:1px solid #92b2df;border-radius:99px;padding:5px 11px;font-size:.82rem}main{max-width:1100px;margin:auto;padding:28px 20px 70px}section{margin:0 0 34px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}.card{background:white;border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:0 6px 18px #1c3a5d08}.card h2,.card h3{margin-top:0;line-height:1.25}.muted{color:var(--muted)}.callout{border-left:4px solid var(--gold);background:#fff8e8;padding:14px 17px;border-radius:8px}.danger{border-left:4px solid var(--red);background:#fff0f2;padding:14px 17px;border-radius:8px}button{background:white;border:1px solid #b7c8db;border-radius:10px;padding:10px 13px;cursor:pointer;color:var(--ink);font:inherit;font-weight:700}button.active,button:hover{background:var(--blue);color:white;border-color:var(--blue)}.tabs{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}.flowpanel{display:none}.flowpanel.active{display:block}.flowimg{width:100%;display:block;border-radius:12px;border:1px solid var(--line);background:white}.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:12px;background:white}table{border-collapse:collapse;width:100%;min-width:720px;font-size:.92rem}th,td{padding:11px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{background:#eaf1fa;font-size:.85rem}.steps{counter-reset:s;list-style:none;padding:0}.steps li{counter-increment:s;position:relative;padding:2px 0 17px 48px}.steps li:before{content:counter(s);position:absolute;left:0;top:0;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:#e4edff;color:var(--blue);font-weight:800}.failures details{background:white;border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:9px 0}.failures summary{font-weight:750;cursor:pointer}.failures details p{margin-bottom:5px}.source-list li{margin-bottom:8px}a{color:var(--blue);font-weight:650}footer{max-width:1100px;margin:auto;padding:0 20px 38px;color:var(--muted);font-size:.9rem}.metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}.metric{background:#eaf3ff;border-radius:12px;padding:14px}.metric b{display:block;font-size:1.15rem}@media(max-width:600px){header{padding:34px 20px}main{padding:22px 13px 50px}}
-</style></head><body><header><div class="kicker">Fintech operations · Portfolio project 02</div><h1>Card, UPI & Wallet<br>Payment Flows</h1><p>A source-backed explainer of how payment requests move, where failures happen, and what an operations team should capture before escalating an incident.</p><div class="tags"><span class="tag">3 flow maps</span><span class="tag">Failure & reversal matrix</span><span class="tag">Operational checklist</span><span class="tag">Official source register</span></div></header><main>
-<section class="grid"><article class="card"><h3>Key distinction</h3><p>A wallet can be an interface or credential store. A tokenized card transaction in a supported wallet generally uses the underlying card rails rather than becoming a new payment rail.</p></article><article class="card"><h3>Key operating principle</h3><p>An unknown or timed-out status is not proof of failure. Query and reconcile the transaction before retrying to reduce duplicate-charge risk.</p></article><article class="card"><h3>Research scope</h3><p>High-level public-source learning guide—not integration, legal, compliance or certification advice. Validate exact flow and rules with the relevant participant.</p></article></section>
-<section><h2>1 · Explore the transaction flows</h2><div class="tabs"><button class="active" data-tab="card">Card</button><button data-tab="upi">UPI</button><button data-tab="wallet">Tokenized wallet card</button></div><div class="card"><div class="flowpanel active" id="panel-card"><img class="flowimg" src="assets/card_flow.svg" alt="Card payment flow diagram"><p class="muted">Authorization response returns through the card path. Capture, clearing, settlement and merchant payout are later, distinct stages.</p></div><div class="flowpanel" id="panel-upi"><img class="flowimg" src="assets/upi_flow.svg" alt="UPI payment flow diagram"><p class="muted">The payer app, PSP/bank participants, UPI ecosystem and beneficiary side exchange status. A debit alone may not confirm merchant credit.</p></div><div class="flowpanel" id="panel-wallet"><img class="flowimg" src="assets/tokenized_wallet_card_flow.svg" alt="Tokenized wallet card flow diagram"><p class="muted">This describes a supported tokenized card use case. Supported wallet products and regions differ, and the issuer still makes the underlying card authorization decision.</p></div></div></section>
-<section><h2>2 · Compare the models</h2><div class="table-wrap"><table><thead><tr><th>Dimension</th><th>Card rails</th><th>UPI</th><th>Tokenized card in wallet</th></tr></thead><tbody><tr><td>Primary model</td><td>Card credential routed through acquirer/processor and network to issuer</td><td>India account-to-account system using UPI ecosystem participants and banks</td><td>Wallet presents tokenized card credential into supported card acceptance path</td></tr><tr><td>Approval</td><td>Issuer approves or declines via network routing</td><td>UPI app/PSP and bank processing; UPI PIN or supported authentication may apply</td><td>Wallet/token data supports the card authorization; issuer still decides</td></tr><tr><td>Clearing / settlement</td><td>Authorization, clearing and settlement are distinct; payout depends on contract</td><td>Near-real-time transfer model, but merchant/account credit and reconciliation depend on transaction and bank/provider arrangements</td><td>Usually follows underlying card capture, clearing, settlement and payout arrangement</td></tr><tr><td>Failure focus</td><td>Issuer declines, timeouts, capture mismatch, disputes and reconciliation</td><td>Business vs technical declines, pending status, debit/credit mismatch and reversal handling</td><td>Token provisioning/device support plus all underlying card failure modes</td></tr><tr><td>Core references</td><td><a href="https://developer.visa.com/capabilities/visanet-connect-acceptance">Visa flow</a></td><td><a href="https://www.npci.org.in/what-we-do/upi/faqs">NPCI UPI FAQs</a></td><td><a href="https://developer.apple.com/apple-pay/planning/">Apple Pay token</a>; <a href="https://support.google.com/pay/india/answer/9674221?hl=en">Google Pay India</a></td></tr></tbody></table></div></section>
-<section><h2>3 · Failure handling playbook</h2><div class="failures"><details open><summary>Timeout or final status unknown</summary><p><b>Action:</b> query the status API/dashboard, check webhook events and reconcile using payment ID + order ID. Keep the order pending until authoritative status is known.</p><p><b>Avoid:</b> immediately creating a fresh charge after a timeout.</p><p><b>Capture:</b> request/response timestamps, payment ID, order ID, idempotency key, event ID and response-code category.</p></details><details><summary>UPI debit but beneficiary/merchant credit not confirmed</summary><p><b>Action:</b> verify current status and bank reference; follow the current applicable NPCI/RBI handling for the specific transaction category and escalate if needed.</p><p><b>Avoid:</b> assuming debit alone confirms the merchant order was paid, or promising one generic timeline.</p></details><details><summary>Payment succeeded but merchant order is unpaid</summary><p><b>Action:</b> reconcile order/payment IDs and provider events; repair order state only after status confirmation and process duplicate events idempotently.</p><p><b>Avoid:</b> relying solely on a browser redirect.</p></details><details><summary>Refund initiated but not yet credited</summary><p><b>Action:</b> capture refund ID and timestamp, check provider status and applicable issuer/provider guidance, and explain that initiation and statement posting are distinct.</p><p><b>Avoid:</b> promising instant credit for every rail/provider.</p></details><details><summary>Wallet token provisioning/device error</summary><p><b>Action:</b> check issuer/card/region/device eligibility and non-sensitive error details; escalate to the proper wallet/issuer/provider support path.</p><p><b>Avoid:</b> requesting or storing full card number, CVV, OTP or UPI PIN in a support ticket.</p></details><details><summary>Refund, reversal and chargeback: what differs?</summary><p><b>Authorization reversal/void:</b> release or reverse a supported authorization/hold. <b>Refund:</b> return funds after a completed/captured transaction. <b>UPI failed-transaction reversal:</b> bank/scheme process for specified failure cases. <b>Chargeback/dispute:</b> a separate formal dispute process with its own evidence and deadlines.</p></details></div></section>
-<section><h2>4 · Operational tracker and KPI suggestions</h2><div class="metric-grid"><div class="metric"><b>Authorization success rate</b><span class="muted">Define approvals / eligible attempts and segment by response code.</span></div><div class="metric"><b>Unknown-status aging</b><span class="muted">Count and age transactions awaiting a definitive state.</span></div><div class="metric"><b>Reversal aging</b><span class="muted">Track applicable failed cases from initiation to confirmed reversal.</span></div><div class="metric"><b>Refund turnaround</b><span class="muted">Separate provider status from issuer/customer posting where possible.</span></div><div class="metric"><b>Reconciliation breaks</b><span class="muted">Measure unmatched transactions, captures, settlement and payouts.</span></div><div class="metric"><b>Partner response SLA</b><span class="muted">Record first response, resolution time and escalation owner.</span></div></div><p>Minimum case fields: order ID, payment ID, rail, provider, amount/currency, timestamp/timezone, status, response code, idempotency key, relevant bank/provider reference, event timestamps, owner, escalation date and final resolution. Never include authentication secrets.</p><a href="data/failure_scenarios.csv">Download failure-scenario matrix →</a> · <a href="data/payment_rail_comparison.csv">Download comparison CSV →</a></section>
-<section><h2>5 · Sources</h2><div class="card"><ul class="source-list"><li><a href="https://www.npci.org.in/what-we-do/upi/faqs">NPCI — UPI FAQs</a></li><li><a href="https://www.npci.org.in/PDF/npci/upi/Product-Booklet.pdf">NPCI — UPI Product Booklet</a></li><li><a href="https://www.npci.org.in/what-we-do/upi/upi-ecosystem-statistics">NPCI — UPI ecosystem statistics glossary</a></li><li><a href="https://www.rbi.org.in/commonman/Upload/English/Notification/PDFs/CIRCULAR677EC931A7A65E4D99AA957D8E85BC0A2A.PDF">RBI — failed transaction TAT framework</a></li><li><a href="https://corporate.visa.com/en/solutions/visa-protect/insights/3d-secure.html">Visa — authentication, authorization, clearing and settlement</a></li><li><a href="https://developer.visa.com/capabilities/visanet-connect-acceptance">Visa — VisaNet Connect Acceptance</a></li><li><a href="https://developer.apple.com/apple-pay/planning/">Apple Developer — Apple Pay Planning</a></li><li><a href="https://support.google.com/pay/india/answer/9674221?hl=en">Google Pay Help — supported cards and tokenization in India</a></li><li><a href="https://razorpay.com/docs/pos/refunds/faqs/?preferred-country=US">Razorpay — refund FAQs (provider-specific example)</a></li><li><a href="https://www.mastercard.us/en-us/business/overview/support/rules.html">Mastercard — merchant rules and chargeback guidance</a></li></ul><a href="docs/sources.md">View annotated source register →</a></div></section>
-<section class="callout"><b>Important:</b> The actual message flow, fees, timing, supported wallet features, reversal treatment and escalation deadlines vary by payment type, country, provider, issuer/acquirer arrangement, and current rules. This project is a learning guide, not operational/legal advice. Verify current official requirements before using it to handle a real payment incident.</section>
-</main><footer>Self-directed fintech learning project. Sources checked 10 October 2026. Static page; no tracking or external JavaScript dependencies.</footer><script>document.querySelectorAll('[data-tab]').forEach(btn=>btn.addEventListener('click',()=>{document.querySelectorAll('[data-tab]').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.flowpanel').forEach(p=>p.classList.remove('active'));btn.classList.add('active');document.getElementById('panel-'+btn.dataset.tab).classList.add('active')}));</script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A practical fintech operations study explaining card, UPI and tokenized wallet payment flows, failure handling, reconciliation and provider operations.">
+  <meta name="theme-color" content="#13233d">
+  <title>Card, UPI & Wallet Payment Flows | Fintech Operations</title>
+
+  <style>
+    :root {
+      --ink: #18263f;
+      --muted: #5b6b81;
+      --line: #dce5ef;
+      --bg: #f5f8fc;
+      --blue: #225ee8;
+      --teal: #0a8a7c;
+      --gold: #f0aa35;
+      --red: #b53c52;
+      --white: #ffffff;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font: 16px/1.65 Inter, system-ui, -apple-system,
+            BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    header {
+      padding: 54px max(6vw, 22px);
+      background: linear-gradient(125deg, #13233d, #225b82);
+      color: #fff;
+    }
+
+    .hero-inner, main, footer {
+      max-width: 1100px;
+      margin-inline: auto;
+    }
+
+    header .kicker {
+      color: #bad8ff;
+      font-size: .76rem;
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 10px 0 16px;
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      line-height: 1.1;
+    }
+
+    header p {
+      max-width: 830px;
+      color: #e5efff;
+    }
+
+    .tags, .actions, .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .tag {
+      padding: 5px 11px;
+      border: 1px solid #92b2df;
+      border-radius: 99px;
+      font-size: .82rem;
+    }
+
+    .hero-links {
+      margin-top: 22px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .hero-links a {
+      padding: 9px 14px;
+      border-radius: 9px;
+      background: #fff;
+      color: #17335f;
+      text-decoration: none;
+      font-weight: 750;
+    }
+
+    main { padding: 28px 20px 65px; }
+
+    section { margin-bottom: 34px; }
+
+    section h2 {
+      font-size: 1.5rem;
+      line-height: 1.25;
+      margin-bottom: 14px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      min-width: 0;
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--white);
+      box-shadow: 0 6px 18px #1c3a5d08;
+    }
+
+    .card h2, .card h3 { margin-top: 0; line-height: 1.25; }
+
+    .muted { color: var(--muted); }
+
+    .callout, .danger {
+      padding: 14px 17px;
+      border-radius: 8px;
+    }
+
+    .callout {
+      border-left: 4px solid var(--gold);
+      background: #fff8e8;
+    }
+
+    .danger {
+      border-left: 4px solid var(--red);
+      background: #fff0f2;
+    }
+
+    button {
+      padding: 10px 13px;
+      border: 1px solid #b7c8db;
+      border-radius: 10px;
+      background: #fff;
+      color: var(--ink);
+      cursor: pointer;
+      font: inherit;
+      font-weight: 700;
+    }
+
+    button.active, button:hover {
+      border-color: var(--blue);
+      background: var(--blue);
+      color: #fff;
+    }
+
+    button:focus-visible, a:focus-visible {
+      outline: 3px solid var(--gold);
+      outline-offset: 3px;
+    }
+
+    .tabs { margin-bottom: 16px; }
+
+    .flowpanel { display: none; }
+    .flowpanel.active { display: block; }
+
+    .flowimg {
+      display: block;
+      width: 100%;
+      height: auto;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+    }
+
+    table {
+      width: 100%;
+      min-width: 720px;
+      border-collapse: collapse;
+      font-size: .92rem;
+    }
+
+    th, td {
+      padding: 11px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #eaf1fa;
+      font-size: .85rem;
+    }
+
+    tr:last-child td { border-bottom: 0; }
+
+    .failures details {
+      margin: 9px 0;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+    }
+
+    .failures summary {
+      cursor: pointer;
+      font-weight: 750;
+    }
+
+    .failures details p { margin-bottom: 5px; }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+    }
+
+    .metric {
+      padding: 14px;
+      border-radius: 12px;
+      background: #eaf3ff;
+    }
+
+    .metric b {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 1.05rem;
+    }
+
+    .resource-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 10px;
+      padding-left: 20px;
+    }
+
+    .resource-list li { margin-bottom: 4px; }
+
+    a {
+      color: var(--blue);
+      font-weight: 650;
+      overflow-wrap: anywhere;
+    }
+
+    .resource-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    footer {
+      padding: 0 20px 38px;
+      color: var(--muted);
+      font-size: .9rem;
+    }
+
+    @media (max-width: 600px) {
+      header { padding: 34px 20px; }
+      main { padding: 22px 13px 48px; }
+      .card { padding: 16px; }
+    }
+
+    @media print {
+      body { background: #fff; }
+      .tabs, .hero-links { display: none; }
+      .flowpanel { display: block !important; margin-bottom: 20px; }
+      .card { box-shadow: none; break-inside: avoid; }
+      a { color: #17335f; }
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <div class="hero-inner">
+    <div class="kicker">Fintech Operations · Portfolio Project 02</div>
+
+    <h1>Card, UPI & Wallet<br>Payment Flows</h1>
+
+    <p>
+      A practical, source-backed study of how payment requests move,
+      where transaction failures occur, and what an operations team
+      should capture before escalating an incident.
+    </p>
+
+    <div class="tags">
+      <span class="tag">3 transaction-flow diagrams</span>
+      <span class="tag">Failure and reversal matrix</span>
+      <span class="tag">Operational troubleshooting</span>
+      <span class="tag">Public source register</span>
+    </div>
+
+    <div class="hero-links">
+      <a href="#flows">Explore payment flows ↓</a>
+      <a href="payment_flow_analysis.md">Read full research report</a>
+      <a href="README.md">Project README</a>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <section class="grid">
+    <article class="card">
+      <h3>Key distinction</h3>
+      <p>
+        A wallet may act as an interface or credential store.
+        A tokenized card transaction in a supported wallet generally
+        uses the underlying card payment infrastructure rather than
+        becoming a separate payment rail.
+      </p>
+    </article>
+
+    <article class="card">
+      <h3>Key operating principle</h3>
+      <p>
+        An unknown or timed-out status is not proof of failure.
+        Query and reconcile the transaction before retrying to reduce
+        duplicate-charge risk.
+      </p>
+    </article>
+
+    <article class="card">
+      <h3>Research scope</h3>
+      <p>
+        This is a learning project based on public sources, not
+        integration, legal, compliance, certification, or
+        provider-selection advice.
+      </p>
+    </article>
+  </section>
+
+  <section id="flows">
+    <h2>1 · Explore the transaction flows</h2>
+
+    <p class="muted">
+      Select a flow to examine the participants and the main operational
+      considerations.
+    </p>
+
+    <div class="tabs" role="group" aria-label="Select a payment flow">
+      <button class="active" data-tab="card" aria-pressed="true">Card</button>
+      <button data-tab="upi" aria-pressed="false">UPI</button>
+      <button data-tab="wallet" aria-pressed="false">
+        Tokenized wallet card
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="flowpanel active" id="panel-card">
+        <h3>Card payment flow</h3>
+        <img
+          class="flowimg"
+          src="card_flow.svg"
+          alt="Diagram of a card payment transaction"
+          loading="lazy"
+        >
+        <p class="muted">
+          Authorization and its response are distinct from later
+          capture, clearing, settlement, and merchant payout stages.
+          Exact processing depends on the payment arrangement.
+        </p>
+        <a href="card_flow.mmd">View editable flow source</a>
+      </div>
+
+      <div class="flowpanel" id="panel-upi">
+        <h3>UPI payment flow</h3>
+        <img
+          class="flowimg"
+          src="upi_flow.svg"
+          alt="Diagram of a UPI payment transaction"
+          loading="lazy"
+        >
+        <p class="muted">
+          The payer app, payment service provider and bank participants
+          exchange requests and status information. A debit alone
+          does not establish that the merchant order has been
+          successfully confirmed.
+        </p>
+        <a href="upi_flow.mmd">View editable flow source</a>
+      </div>
+
+      <div class="flowpanel" id="panel-wallet">
+        <h3>Tokenized card in a digital wallet</h3>
+        <img
+          class="flowimg"
+          src="tokenized_wallet_card_flow.svg"
+          alt="Diagram of a tokenized card payment made through a digital wallet"
+          loading="lazy"
+        >
+        <p class="muted">
+          In a supported tokenized-card use case, tokenization helps
+          protect card credentials. The underlying card authorization
+          still follows the applicable card-processing arrangement.
+          Device, card, wallet, and regional support can differ.
+        </p>
+        <a href="tokenized_wallet_card_flow.mmd">View editable flow source</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="comparison">
+    <h2>2 · Compare the payment models</h2>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Dimension</th>
+            <th>Card rails</th>
+            <th>UPI</th>
+            <th>Tokenized card in wallet</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr>
+            <td><strong>Primary model</strong></td>
+            <td>
+              Card credentials are routed through the acceptance
+              and processing path to the issuer.
+            </td>
+            <td>
+              India's account-to-account payment system operating
+              through participating UPI and banking infrastructure.
+            </td>
+            <td>
+              A supported wallet presents tokenized card credentials
+              into the underlying card acceptance path.
+            </td>
+          </tr>
+
+          <tr>
+            <td><strong>Approval</strong></td>
+            <td>
+              An authorization request is routed for an issuer
+              approval or decline.
+            </td>
+            <td>
+              Participating apps, payment providers and banks process
+              the request; applicable authentication is required.
+            </td>
+            <td>
+              The tokenized credential supports the card transaction;
+              the issuer still makes the underlying authorization
+              decision.
+            </td>
+          </tr>
+
+          <tr>
+            <td><strong>Settlement</strong></td>
+            <td>
+              Authorization, clearing, settlement and merchant
+              payout are different stages. Timing depends on the
+              relevant arrangement.
+            </td>
+            <td>
+              Transaction completion, account credit, settlement
+              and reconciliation depend on the transaction and
+              applicable bank or provider processes.
+            </td>
+            <td>
+              Generally follows the applicable card capture,
+              clearing, settlement and payout arrangement.
+            </td>
+          </tr>
+
+          <tr>
+            <td><strong>Failure focus</strong></td>
+            <td>
+              Issuer declines, timeouts, capture mismatches,
+              disputes, and reconciliation breaks.
+            </td>
+            <td>
+              Pending status, technical or business declines,
+              debit/credit mismatches, and reversal handling.
+            </td>
+            <td>
+              Token provisioning and device eligibility, plus
+              the underlying card transaction's failure modes.
+            </td>
+          </tr>
+
+          <tr>
+            <td><strong>References</strong></td>
+            <td>
+              <a href="https://developer.visa.com/capabilities/visanet-connect-acceptance">
+                Visa acceptance documentation
+              </a>
+            </td>
+            <td>
+              <a href="https://www.npci.org.in/what-we-do/upi/faqs">
+                NPCI UPI FAQs
+              </a>
+            </td>
+            <td>
+              <a href="https://developer.apple.com/apple-pay/planning/">
+                Apple Pay planning
+              </a>
+              ·
+              <a href="https://support.google.com/pay/india/answer/9674221?hl=en">
+                Google Pay India
+              </a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="muted">
+      A detailed comparison is available in the downloadable CSV.
+      The table is educational and does not provide a live assessment
+      of any payment provider.
+    </p>
+
+    <a href="payment_rail_comparison.csv" download>
+      Download payment-rail comparison CSV →
+    </a>
+  </section>
+
+  <section id="failures">
+    <h2>3 · Failure handling playbook</h2>
+
+    <p class="muted">
+      Example operational responses to common payment exceptions.
+      The correct procedure depends on the rail, participant, provider
+      and applicable rules.
+    </p>
+
+    <div class="failures">
+
+      <details open>
+        <summary>Timeout or final status unknown</summary>
+        <p>
+          <strong>Action:</strong> Check the authoritative provider
+          status, available API or dashboard data, webhook events,
+          and reconciliation records using the relevant transaction
+          identifiers.
+        </p>
+        <p>
+          <strong>Avoid:</strong> Creating a fresh charge immediately
+          after a timeout without checking the original transaction.
+        </p>
+        <p>
+          <strong>Capture:</strong> Payment ID, order ID, timestamps
+          and timezone, response-code category, event IDs, and
+          relevant idempotency information.
+        </p>
+      </details>
+
+      <details>
+        <summary>UPI debit, but merchant credit is not confirmed</summary>
+        <p>
+          <strong>Action:</strong> Check the current transaction status
+          and relevant bank or payment reference. Follow the applicable
+          process and escalation route for that transaction category.
+        </p>
+        <p>
+          <strong>Avoid:</strong> Treating a debit as sufficient
+          evidence that the merchant order was paid, or promising a
+          generic reversal timeline.
+        </p>
+      </details>
+
+      <details>
+        <summary>Payment succeeded, but the order remains unpaid</summary>
+        <p>
+          <strong>Action:</strong> Match the order and payment
+          identifiers, verify provider events, and correct the order
+          state only after confirming the authoritative payment status.
+        </p>
+        <p>
+          <strong>Avoid:</strong> Relying exclusively on a browser
+          redirect or treating repeated event notifications as
+          separate payments.
+        </p>
+      </details>
+
+      <details>
+        <summary>Refund initiated but not yet credited</summary>
+        <p>
+          <strong>Action:</strong> Record the refund identifier and
+          timestamp, check the provider status, and communicate the
+          appropriate next step.
+        </p>
+        <p>
+          <strong>Avoid:</strong> Promising immediate credit in all
+          cases. Refund initiation and customer-side posting are
+          different events.
+        </p>
+      </details>
+
+      <details>
+        <summary>Wallet token provisioning or device error</summary>
+        <p>
+          <strong>Action:</strong> Check supported card, device and
+          regional eligibility and capture the non-sensitive error
+          details needed for escalation.
+        </p>
+        <p>
+          <strong>Avoid:</strong> Asking customers to send or storing
+          a full card number, CVV, OTP or UPI PIN in a support ticket.
+        </p>
+      </details>
+
+      <details>
+        <summary>Refund, reversal and chargeback are different</summary>
+        <p>
+          <strong>Authorization reversal or void:</strong> A supported
+          action associated with reversing an authorization or hold.
+        </p>
+        <p>
+          <strong>Refund:</strong> Returning funds in connection with
+          a completed transaction.
+        </p>
+        <p>
+          <strong>Failed-transaction reversal:</strong> A process
+          governed by the relevant payment rail's rules and
+          transaction circumstances.
+        </p>
+        <p>
+          <strong>Chargeback or dispute:</strong> A separate formal
+          dispute process with its own evidence and deadlines.
+        </p>
+      </details>
+
+    </div>
+
+    <div class="resource-links">
+      <a href="failure_scenarios.csv" download>
+        Download failure-scenario matrix →
+      </a>
+    </div>
+  </section>
+
+  <section id="operations">
+    <h2>4 · Operational tracking and KPI ideas</h2>
+
+    <div class="metric-grid">
+      <div class="metric">
+        <b>Authorization success rate</b>
+        <span class="muted">
+          Define approved transactions against eligible attempts,
+          then segment by response-code category.
+        </span>
+      </div>
+
+      <div class="metric">
+        <b>Unknown-status aging</b>
+        <span class="muted">
+          Count and age transactions that lack a definitive
+          confirmed status.
+        </span>
+      </div>
+
+      <div class="metric">
+        <b>Reversal aging</b>
+        <span class="muted">
+          Track applicable failed transactions until a reversal
+          or other final outcome is confirmed.
+        </span>
+      </div>
+
+      <div class="metric">
+        <b>Refund turnaround</b>
+        <span class="muted">
+          Distinguish provider refund status from customer-side
+          posting where information is available.
+        </span>
+      </div>
+
+      <div class="metric">
+        <b>Reconciliation breaks</b>
+        <span class="muted">
+          Track unmatched transactions, captures, settlements
+          and payouts.
+        </span>
+      </div>
+
+      <div class="metric">
+        <b>Partner response SLA</b>
+        <span class="muted">
+          Record first response, resolution time, escalation
+          owner and follow-up dates.
+        </span>
+      </div>
+    </div>
+
+    <article class="card" style="margin-top:16px">
+      <h3>Suggested exception-tracking fields</h3>
+      <p>
+        Order ID, payment ID, payment rail, provider, amount and
+        currency, timestamp and timezone, transaction status,
+        response-code category, relevant bank or provider reference,
+        event timestamps, assigned owner, escalation date and
+        final resolution.
+      </p>
+      <p class="muted">
+        Store only the information necessary for investigating the
+        issue. Never include authentication secrets.
+      </p>
+    </article>
+  </section>
+
+  <section id="research">
+    <h2>5 · Research and official references</h2>
+
+    <div class="card">
+      <p>
+        The following public resources provide background for the
+        payment-flow study. Provider-specific guidance and payment
+        rules may change; verify the current requirements before
+        relying on them for a real transaction.
+      </p>
+
+      <ul class="resource-list">
+        <li>
+          <a href="https://www.npci.org.in/what-we-do/upi/faqs">
+            NPCI — UPI FAQs
+          </a>
+        </li>
+
+        <li>
+          <a href="https://www.npci.org.in/PDF/npci/upi/Product-Booklet.pdf">
+            NPCI — UPI Product Booklet
+          </a>
+        </li>
+
+        <li>
+          <a href="https://www.npci.org.in/what-we-do/upi/upi-ecosystem-statistics">
+            NPCI — UPI ecosystem statistics
+          </a>
+        </li>
+
+        <li>
+          <a href="https://www.rbi.org.in/commonman/Upload/English/Notification/PDFs/CIRCULAR677EC931A7A65E4D99AA957D8E85BC0A2A.PDF">
+            RBI — failed-transaction turnaround-time framework
+          </a>
+        </li>
+
+        <li>
+          <a href="https://corporate.visa.com/en/solutions/visa-protect/insights/3d-secure.html">
+            Visa — authentication and payment security
+          </a>
+        </li>
+
+        <li>
+          <a href="https://developer.visa.com/capabilities/visanet-connect-acceptance">
+            Visa — VisaNet Connect Acceptance
+          </a>
+        </li>
+
+        <li>
+          <a href="https://developer.apple.com/apple-pay/planning/">
+            Apple Developer — Apple Pay Planning
+          </a>
+        </li>
+
+        <li>
+          <a href="https://support.google.com/pay/india/answer/9674221?hl=en">
+            Google Pay Help — cards and tokenization in India
+          </a>
+        </li>
+
+        <li>
+          <a href="https://razorpay.com/docs/pos/refunds/faqs/?preferred-country=US">
+            Razorpay — refund FAQs
+          </a>
+        </li>
+
+        <li>
+          <a href="https://www.mastercard.us/en-us/business/overview/support/rules.html">
+            Mastercard — rules and dispute guidance
+          </a>
+        </li>
+      </ul>
+
+      <div class="resource-links">
+        <a href="sources.md">Open annotated source register →</a>
+        <a href="payment_flow_analysis.md">Read full research analysis →</a>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>6 · Project files</h2>
+
+    <div class="grid">
+      <article class="card">
+        <h3>Research and documentation</h3>
+        <p class="muted">
+          Read the detailed analysis, source register and project
+          setup notes.
+        </p>
+        <div class="resource-links">
+          <a href="payment_flow_analysis.md">Research report</a>
+          <a href="sources.md">Source register</a>
+          <a href="README.md">README</a>
+        </div>
+      </article>
+
+      <article class="card">
+        <h3>Data and comparison files</h3>
+        <p class="muted">
+          Download the comparison dataset and failure-scenario
+          matrix for further analysis.
+        </p>
+        <div class="resource-links">
+          <a href="payment_rail_comparison.csv" download>
+            Comparison CSV
+          </a>
+          <a href="failure_scenarios.csv" download>
+            Failure matrix CSV
+          </a>
+        </div>
+      </article>
+
+      <article class="card">
+        <h3>Editable diagrams</h3>
+        <p class="muted">
+          Review the Mermaid source used to describe each
+          transaction flow.
+        </p>
+        <div class="resource-links">
+          <a href="card_flow.mmd">Card flow source</a>
+          <a href="upi_flow.mmd">UPI flow source</a>
+          <a href="tokenized_wallet_card_flow.mmd">
+            Wallet flow source
+          </a>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="callout">
+    <strong>Important limitations:</strong>
+    Transaction flows, fees, processing times, supported wallet
+    features, reversal handling and escalation deadlines vary by
+    payment type, country, provider, bank, issuer/acquirer arrangement
+    and applicable rules. This portfolio is an educational guide,
+    not operational or legal advice. Verify current official
+    requirements before handling a real payment incident.
+  </section>
+
+</main>
+
+<footer>
+  <p>
+    Self-directed fintech learning project · Static website ·
+    No tracking or external JavaScript dependencies.
+  </p>
+  <p>
+    <a href="README.md">Project README</a>
+    ·
+    <a href="sources.md">Source register</a>
+  </p>
+</footer>
+
+<script>
+  const tabButtons = document.querySelectorAll("[data-tab]");
+  const flowPanels = document.querySelectorAll(".flowpanel");
+
+  tabButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      tabButtons.forEach((item) => {
+        item.classList.remove("active");
+        item.setAttribute("aria-pressed", "false");
+      });
+
+      flowPanels.forEach((panel) => {
+        panel.classList.remove("active");
+      });
+
+      button.classList.add("active");
+      button.setAttribute("aria-pressed", "true");
+
+      const panel = document.getElementById(
+        "panel-" + button.dataset.tab
+      );
+
+      if (panel) {
+        panel.classList.add("active");
+      }
+    });
+  });
+</script>
+
+</body>
+</html>
